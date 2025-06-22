@@ -1,0 +1,15 @@
+asgiref==3.8.1
+bcrypt==4.3.0
+colorama==0.4.6
+dataclasses==0.6
+Django==5.2.3
+django-otp==1.6.0
+django-qrcode==0.3
+djangorestframework==3.15.1
+dnspython==2.7.0
+pymongo==3.11.4
+pytz==2025.2
+qrcode==8.2
+setuptools==57.5.0
+sqlparse==0.5.3
+tzdata==2025.2

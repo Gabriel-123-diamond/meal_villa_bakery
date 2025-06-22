@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% block title %}Performance Review - {{ employee.get_full_name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <a href="{% url 'users:staff_management' %}" class="text-blue-500 hover:underline mb-4 inline-block">&larr; Back to Staff Management</a>
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="border-b pb-4 mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 mb-2">Performance Review</h1>
+            <h2 class="text-xl text-gray-600">Employee: <span class="font-semibold">{{ employee.get_full_name }}</span> (ID: {{ employee.username }})</h2>
+        </div>
+
+        <!-- Add New Log Section -->
+        <div class="mb-8">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4">Add New Performance Log</h3>
+            <form id="perf-log-form" class="space-y-4 bg-gray-50 p-4 rounded-lg">
+                {% csrf_token %}
+                <input type="hidden" id="user-id" value="{{ employee.id }}">
+                <div>
+                    <label for="log-type" class="block text-sm font-medium text-gray-700">Log Type</label>
+                    <select id="log-type" class="w-full p-2 border rounded-md mt-1">
+                        <option value="positive">Positive</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="negative">Negative</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="log-notes" class="block text-sm font-medium text-gray-700">Notes</label>
+                    <textarea id="log-notes" rows="3" class="w-full p-2 border rounded-md mt-1" required placeholder="Enter detailed notes about performance..."></textarea>
+                </div>
+                <button type="submit" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Submit Log</button>
+            </form>
+        </div>
+
+        <!-- Log History -->
+        <div>
+            <h3 class="text-xl font-semibold text-gray-700 mb-4">Log History</h3>
+            <div id="log-history-container" class="space-y-4">
+                <p>Loading log history...</p>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const logContainer = document.getElementById('log-history-container');
+    const form = document.getElementById('perf-log-form');
+    const userId = document.getElementById('user-id').value;
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    const typeStyles = {
+        positive: { border: 'border-green-500', text: 'text-green-700', bg: 'bg-green-50' },
+        negative: { border: 'border-red-500', text: 'text-red-700', bg: 'bg-red-50' },
+        neutral: { border: 'border-gray-500', text: 'text-gray-700', bg: 'bg-gray-50' }
+    };
+
+    const loadLogs = () => {
+        fetch(`/api/performance/logs/?user_id=${userId}`)
+            .then(res => res.json())
+            .then(logs => {
+                logContainer.innerHTML = '';
+                if(logs.length === 0) {
+                    logContainer.innerHTML = '<p class="text-center text-gray-500 py-4">No performance logs for this user.</p>';
+                    return;
+                }
+                logs.forEach(log => {
+                    const styles = typeStyles[log.log_type] || typeStyles.neutral;
+                    const logCard = `
+                        <div class="border-l-4 ${styles.border} ${styles.bg} p-4 rounded-r-lg">
+                            <p class="text-gray-800">${log.notes}</p>
+                            <p class="text-xs text-gray-500 mt-2">
+                                Logged by <span class="font-semibold">${log.logged_by_name}</span> on ${new Date(log.created_at).toLocaleString()}
+                            </p>
+                        </div>
+                    `;
+                    logContainer.innerHTML += logCard;
+                });
+            });
+    };
+
+    form.addEventListener('submit', e => {
+        e.preventDefault();
+        const data = {
+            user_id: parseInt(userId),
+            log_type: document.getElementById('log-type').value,
+            notes: document.getElementById('log-notes').value
+        };
+        fetch('/api/performance/logs/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+            body: JSON.stringify(data)
+        })
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to add log.'))
+        .then(() => {
+            form.reset();
+            loadLogs();
+        })
+        .catch(err => alert(err));
+    });
+
+    loadLogs();
+});
+</script>
+{% endblock %}
+

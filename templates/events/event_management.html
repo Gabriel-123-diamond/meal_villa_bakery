@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% block title %}Event Management{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Event Management</h1>
+        <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+        <button id="add-event-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Create New Event</button>
+    </div>
+    <div id="event-management-list" class="space-y-4"></div>
+</div>
+
+<div id="event-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full"><div class="relative top-10 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white"><h3 class="text-2xl text-center font-medium text-gray-900">Create Event</h3><form id="event-form" class="space-y-4 p-4"><input type="text" id="event-title" placeholder="Event Title" class="w-full p-2 border rounded" required><textarea id="event-desc" placeholder="Description" class="w-full p-2 border rounded" required></textarea><input type="datetime-local" id="event-start" class="w-full p-2 border rounded" required><input type="datetime-local" id="event-end" class="w-full p-2 border rounded" required><input type="text" id="event-location" placeholder="Location" class="w-full p-2 border rounded" required><input type="number" id="event-max" placeholder="Max Attendees" class="w-full p-2 border rounded" required min="1"></form><div class="px-4 py-3"><button id="save-event-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Save Event</button><button id="close-event-modal-btn" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button></div></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const listContainer = document.getElementById('event-management-list');
+    const modal = document.getElementById('event-modal');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const loadEvents = () => {
+        fetch('/api/events/').then(res => res.json()).then(events => {
+            listContainer.innerHTML = '';
+            events.forEach(event => {
+                const attendees = event.registered_attendees || [];
+                const spots = `${attendees.length} / ${event.max_attendees}`;
+                listContainer.innerHTML += `<div class="bg-white p-4 rounded-lg shadow"><h3 class="font-bold text-xl">${event.title}</h3><p>Attendees: ${spots}</p><button data-id="${event._id}" class="delete-event-btn text-red-500 mt-2">Delete</button></div>`;
+            });
+        });
+    };
+
+    const openModal = () => modal.classList.remove('hidden');
+    const closeModal = () => modal.classList.add('hidden');
+
+    document.getElementById('add-event-btn').addEventListener('click', openModal);
+    document.getElementById('close-event-modal-btn').addEventListener('click', closeModal);
+
+    document.getElementById('save-event-btn').addEventListener('click', () => {
+        const data = {
+            title: document.getElementById('event-title').value,
+            description: document.getElementById('event-desc').value,
+            start_time: new Date(document.getElementById('event-start').value).toISOString(),
+            end_time: new Date(document.getElementById('event-end').value).toISOString(),
+            location: document.getElementById('event-location').value,
+            max_attendees: parseInt(document.getElementById('event-max').value),
+        };
+        fetch('/api/events/', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.ok ? res.json() : Promise.reject('Save failed'))
+            .then(() => { closeModal(); loadEvents(); document.getElementById('event-form').reset(); })
+            .catch(err => alert(err));
+    });
+
+    listContainer.addEventListener('click', e => {
+        if (e.target.classList.contains('delete-event-btn')) {
+            const id = e.target.dataset.id;
+            if (confirm('Are you sure you want to delete this event?')) {
+                fetch(`/api/events/${id}/`, { method: 'DELETE', headers: {'X-CSRFToken': csrftoken}})
+                .then(res => { if (res.ok) loadEvents(); else alert('Delete failed'); });
+            }
+        }
+    });
+    
+    loadEvents();
+});
+</script>
+{% endblock %}
+

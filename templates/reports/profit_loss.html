@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}Profit & Loss Report{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Profit & Loss Report</h1>
+    <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+    <div class="bg-white p-4 rounded-lg shadow-md mb-6 flex items-end gap-4">
+        <div><label for="start-date" class="block text-sm font-medium text-gray-700">Start Date</label><input type="date" id="start-date" class="mt-1 block w-full border rounded-md py-2 px-3"></div>
+        <div><label for="end-date" class="block text-sm font-medium text-gray-700">End Date</label><input type="date" id="end-date" class="mt-1 block w-full border rounded-md py-2 px-3"></div>
+        <button id="generate-report-btn" class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Generate</button>
+    </div>
+    <div id="report-results" class="hidden grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+        <div class="bg-green-100 p-6 rounded-lg"><h3 class="text-lg font-semibold text-green-800">Total Revenue</h3><p id="total-revenue" class="text-3xl font-bold"></p></div>
+        <div class="bg-red-100 p-6 rounded-lg"><h3 class="text-lg font-semibold text-red-800">Cost of Goods Sold (COGS)</h3><p id="total-cogs" class="text-3xl font-bold"></p></div>
+        <div class="bg-indigo-100 p-6 rounded-lg"><h3 class="text-lg font-semibold text-indigo-800">Gross Profit</h3><p id="gross-profit" class="text-3xl font-bold"></p></div>
+    </div>
+</div>
+<script>
+document.getElementById('generate-report-btn').addEventListener('click', () => {
+    const start = document.getElementById('start-date').value;
+    const end = document.getElementById('end-date').value;
+    if (!start || !end) return;
+    fetch(`/api/reports/profit-loss/?start_date=${start}&end_date=${end}`)
+        .then(res => res.json())
+        .then(data => {
+            const formatCurrency = (num) => `₦${parseFloat(num).toFixed(2)}`;
+            document.getElementById('total-revenue').textContent = formatCurrency(data.total_revenue);
+            document.getElementById('total-cogs').textContent = formatCurrency(data.total_cogs);
+            document.getElementById('gross-profit').textContent = formatCurrency(data.gross_profit);
+            document.getElementById('report-results').classList.remove('hidden');
+        });
+});
+</script>
+{% endblock %}
+

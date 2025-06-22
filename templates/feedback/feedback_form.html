@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Submit Feedback{% endblock %}
+{% block content %}
+<div class="max-w-xl mx-auto bg-white rounded-lg shadow-md p-8 mt-10">
+    <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">We Value Your Feedback</h2>
+    <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+    <p class="text-center text-gray-600 mb-8">Have a suggestion, a compliment, or a concern? Let us know!</p>
+    <form id="feedback-form" class="space-y-6">
+        {% csrf_token %}
+        <div>
+            <label for="name" class="block text-sm font-medium text-gray-700">Your Name</label>
+            <input type="text" id="name" name="customer_name" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+        </div>
+        <div>
+            <label for="email" class="block text-sm font-medium text-gray-700">Your Email</label>
+            <input type="email" id="email" name="email" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+        </div>
+        <div>
+            <label for="subject" class="block text-sm font-medium text-gray-700">Subject</label>
+            <input type="text" id="subject" name="subject" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+        </div>
+        <div>
+            <label for="message" class="block text-sm font-medium text-gray-700">Message</label>
+            <textarea id="message" name="message" rows="4" required class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3"></textarea>
+        </div>
+        <div>
+            <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg">Submit Feedback</button>
+        </div>
+    </form>
+    <div id="form-success-msg" class="hidden mt-6 p-4 text-green-700 bg-green-100 rounded-lg">Thank you! Your feedback has been sent.</div>
+</div>
+<script>
+document.getElementById('feedback-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
+    const data = {
+        customer_name: form.name.value,
+        email: form.email.value,
+        subject: form.subject.value,
+        message: form.message.value
+    };
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch('/api/feedback/submit/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+        body: JSON.stringify(data)
+    })
+    .then(res => res.ok ? res.json() : Promise.reject('Failed to submit.'))
+    .then(() => {
+        form.classList.add('hidden');
+        document.getElementById('form-success-msg').classList.remove('hidden');
+    })
+    .catch(err => alert(err));
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Welcome to Meal Villa Bakery{% endblock %}
+
+{% block content %}
+<div class="text-center py-20 bg-white">
+    <h1 class="text-5xl font-extrabold text-gray-800 mb-4">Welcome to Meal Villa Bakery</h1>
+    <p class="text-xl text-gray-600 mb-8">The heart of your bakery's operations.</p>
+    <a href="{% url 'users:login' %}" class="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-8 rounded-full text-lg transition duration-300">
+        Login to Your Account
+    </a>
+</div>
+{% endblock %}

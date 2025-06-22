@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+{% block title %}Staff Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Staff Management</h1>
+        <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+        <button id="add-staff-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Add New Staff</button>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white">
+                <thead class="bg-gray-800 text-white">
+                    <tr>
+                        <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Name</th>
+                        <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Staff ID</th>
+                        <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Role</th>
+                        <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Status</th>
+                        <th class="text-left py-3 px-4 uppercase font-semibold text-sm">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="text-gray-700" id="staff-table-body">
+                    <tr><td colspan="5" class="text-center py-10"><p id="loading-state">Loading staff data...</p></td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div id="staff-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-20">
+    <div class="relative top-10 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+        <h3 class="text-2xl leading-6 font-medium text-gray-900 text-center" id="modal-title">Add New Staff</h3>
+        <form id="staff-form" class="space-y-4 p-4">
+            <input type="hidden" id="user-id">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div><label for="first-name" class="block text-sm">First Name</label><input type="text" id="first-name" class="w-full p-2 border rounded" required></div>
+                <div><label for="last-name" class="block text-sm">Last Name</label><input type="text" id="last-name" class="w-full p-2 border rounded" required></div>
+            </div>
+            <div><label for="staff-id" class="block text-sm">Staff ID (Username)</label><input type="text" id="staff-id" pattern="\d{1,6}" title="Staff ID must be up to 6 digits." class="w-full p-2 border rounded" required></div>
+            <div><label for="email" class="block text-sm">Email</label><input type="email" id="email" class="w-full p-2 border rounded" required></div>
+            <div class="relative">
+                <label for="password" class="block text-sm">Password</label>
+                <input type="password" id="password" class="w-full p-2 border rounded pr-10" placeholder="Leave blank to keep unchanged">
+                <span class="absolute inset-y-0 right-0 flex items-center pr-3 pt-5 cursor-pointer" onclick="togglePasswordVisibility('password', this)">
+                    <svg class="eye h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <svg class="eye-off hidden h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </span>
+            </div>
+            <div><label for="role" class="block text-sm">Role</label><select id="role" class="w-full p-2 border rounded"><option value="staff">Staff</option><option value="supervisor">Supervisor</option><option value="manager">Manager</option><option value="baker">Baker</option><option value="cleaner">Cleaner</option><option value="accountant">Accountant</option><option value="storekeeper">Storekeeper</option></select></div>
+            <div><label for="is-active" class="block text-sm">Status</label><select id="is-active" class="w-full p-2 border rounded"><option value="true">Active</option><option value="false">Inactive</option></select></div>
+        </form>
+        <div class="px-4 py-3 flex gap-4">
+            <button id="save-staff-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Save</button>
+            <button id="close-modal-btn" class="px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<div id="payroll-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-20">
+    <div class="relative top-20 mx-auto p-5 border w-full max-w-sm shadow-lg rounded-md bg-white">
+        <h3 class="text-2xl text-center font-medium text-gray-900">Set Pay Rate for <span id="payroll-user-name"></span></h3>
+        <form id="payroll-form" class="space-y-4 p-4">
+            <input type="hidden" id="payroll-user-id">
+            <div><label for="hourly-rate">Hourly Rate (₦)</label><input type="number" id="hourly-rate" min="0.01" step="0.01" class="w-full p-2 border rounded" required></div>
+        </form>
+        <div class="px-4 py-3 flex gap-4">
+            <button id="save-payroll-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Save Rate</button>
+            <button id="close-payroll-modal-btn" class="px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function togglePasswordVisibility(fieldId, toggleElement) {
+        const passwordInput = document.getElementById(fieldId);
+        const eyeIcon = toggleElement.querySelector('.eye');
+        const eyeOffIcon = toggleElement.querySelector('.eye-off');
+        
+        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+        passwordInput.setAttribute('type', type);
+        
+        eyeIcon.classList.toggle('hidden');
+        eyeOffIcon.classList.toggle('hidden');
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const tableBody = document.getElementById('staff-table-body');
+        const staffModal = document.getElementById('staff-modal');
+        const payrollModal = document.getElementById('payroll-modal');
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        const loadStaff = () => {
+            fetch('/api/users/')
+            .then(response => {
+                if (!response.ok) throw new Error('Failed to fetch staff list. Status: ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                tableBody.innerHTML = '';
+                if (data.length === 0) {
+                    tableBody.innerHTML = '<tr><td colspan="6" class="text-center py-10">No staff members found.</td></tr>';
+                    return;
+                }
+                data.forEach(user => {
+                    const fullName = `${user.first_name || ''} ${user.last_name || ''}`.trim();
+                    const role = user.profile.role.charAt(0).toUpperCase() + user.profile.role.slice(1);
+                    const status = user.is_active ? `<span class="bg-green-200 text-green-800 py-1 px-3 rounded-full text-xs">Active</span>` : `<span class="bg-red-200 text-red-800 py-1 px-3 rounded-full text-xs">Inactive</span>`;
+                    const hourlyRate = user.payroll_profile ? `₦${parseFloat(user.payroll_profile.hourly_rate).toFixed(2)}` : '₦0.00';
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="text-left py-3 px-4">${fullName}</td>
+                        <td class="text-left py-3 px-4">${user.username}</td>
+                        <td class="text-left py-3 px-4">${role}</td>
+                        <td class="text-left py-3 px-4">${hourlyRate}</td>
+                        <td class="text-left py-3 px-4">${status}</td>
+                        <td class="text-left py-3 px-4 whitespace-nowrap">
+                            <button data-id="${user.id}" class="edit-btn text-sm bg-blue-500 text-white py-1 px-2 rounded">Edit</button>
+                            <button data-id="${user.id}" data-name="${fullName}" class="payroll-btn text-sm bg-yellow-500 text-white py-1 px-2 rounded">Set Rate</button>
+                            <a href="/performance/${user.id}/" class="view-performance-btn text-sm bg-purple-500 text-white py-1 px-2 rounded">Performance</a>
+                            <button data-id="${user.id}" class="delete-btn text-sm bg-red-500 text-white py-1 px-2 rounded">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(row);
+                });
+            }).catch(error => {
+                tableBody.innerHTML = `<tr><td colspan="6" class="text-center py-10 text-red-500">Error loading staff data. Please check the console and try again.</td></tr>`;
+                console.error("Error fetching staff data:", error);
+            });
+        };
+
+        const openStaffModal = (user = null) => {
+            const form = document.getElementById('staff-form');
+            form.reset();
+            document.getElementById('user-id').value = '';
+            const passwordField = document.getElementById('password');
+            passwordField.removeAttribute('required');
+            passwordField.placeholder = 'Leave blank to keep unchanged';
+            
+            if (user) {
+                document.getElementById('modal-title').textContent = 'Edit Staff Member';
+                document.getElementById('user-id').value = user.id;
+                document.getElementById('first-name').value = user.first_name;
+                document.getElementById('last-name').value = user.last_name;
+                document.getElementById('staff-id').value = user.username;
+                document.getElementById('email').value = user.email;
+                document.getElementById('role').value = user.profile.role;
+                document.getElementById('is-active').value = user.is_active ? 'true' : 'false';
+            } else {
+                document.getElementById('modal-title').textContent = 'Add New Staff';
+                passwordField.setAttribute('required', 'required');
+                passwordField.placeholder = 'Required';
+            }
+            staffModal.classList.remove('hidden');
+        };
+        
+        document.getElementById('add-staff-btn').addEventListener('click', () => openStaffModal());
+        document.getElementById('close-modal-btn').addEventListener('click', () => staffModal.classList.add('hidden'));
+
+        document.getElementById('save-staff-btn').addEventListener('click', () => {
+            const userId = document.getElementById('user-id').value;
+            const url = userId ? `/api/users/${userId}/` : '/api/users/';
+            const method = userId ? 'PUT' : 'POST';
+            
+            const data = {
+                first_name: document.getElementById('first-name').value,
+                last_name: document.getElementById('last-name').value,
+                username: document.getElementById('staff-id').value,
+                email: document.getElementById('email').value,
+                is_active: document.getElementById('is-active').value === 'true',
+                is_staff: ['manager', 'developer', 'supervisor', 'accountant'].includes(document.getElementById('role').value),
+                profile: { role: document.getElementById('role').value }
+            };
+            
+            const password = document.getElementById('password').value;
+            if (password || method === 'POST') {
+                if (!password && method === 'POST') { alert('Password is required for new users.'); return; }
+                if (password) { data.password = password; }
+            }
+
+            fetch(url, {
+                method: method,
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+                body: JSON.stringify(data)
+            })
+            .then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err)))
+            .then(() => { staffModal.classList.add('hidden'); loadStaff(); })
+            .catch(err => alert('Error: ' + JSON.stringify(err)));
+        });
+
+        const openPayrollModal = (userId, userName, currentRate) => {
+            document.getElementById('payroll-user-id').value = userId;
+            document.getElementById('payroll-user-name').textContent = userName;
+            document.getElementById('hourly-rate').value = parseFloat(currentRate).toFixed(2);
+            payrollModal.classList.remove('hidden');
+        };
+        document.getElementById('close-payroll-modal-btn').addEventListener('click', () => payrollModal.classList.add('hidden'));
+        
+        document.getElementById('save-payroll-btn').addEventListener('click', () => {
+            const userId = document.getElementById('payroll-user-id').value;
+            const rate = document.getElementById('hourly-rate').value;
+            fetch(`/api/payroll/profile/${userId}/`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+                body: JSON.stringify({ hourly_rate: rate })
+            })
+            .then(res => res.ok ? res.json() : Promise.reject('Failed to set pay rate.'))
+            .then(() => { payrollModal.classList.add('hidden'); loadStaff(); })
+            .catch(err => alert(err));
+        });
+
+        tableBody.addEventListener('click', e => {
+            const id = e.target.dataset.id;
+            if (!id) return;
+            
+            if (e.target.classList.contains('edit-btn')) {
+                fetch(`/api/users/${id}/`).then(res => res.json()).then(user => openStaffModal(user));
+            } else if (e.target.classList.contains('payroll-btn')) {
+                fetch(`/api/users/${id}/`).then(res => res.json()).then(user => {
+                    const currentRate = user.payroll_profile ? user.payroll_profile.hourly_rate : '0.00';
+                    openPayrollModal(id, e.target.dataset.name, currentRate);
+                });
+            } else if (e.target.classList.contains('delete-btn')) {
+                if (confirm(`Are you sure you want to delete this user?`)) {
+                    fetch(`/api/users/${id}/`, { method: 'DELETE', headers: { 'X-CSRFToken': csrftoken }})
+                        .then(response => { if (response.ok) loadStaff(); else alert('Failed to delete user.'); });
+                }
+            }
+        });
+
+        loadStaff();
+    });
+</script>
+{% endblock %}
+

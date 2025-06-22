@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Dashboard</h1>
+
+    {% if user.is_staff %}
+    <!-- Manager/Admin View -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <a href="{% url 'pos:terminal' %}" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+            <h2 class="text-xl font-semibold text-gray-700">Total Products</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ product_count }}</p>
+            <p class="text-gray-500">Click to start a new order</p>
+        </a>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-700">Total Customers</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ customer_count }}</p>
+            <p class="text-gray-500">Registered customers</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-700">Total Orders</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ order_count }}</p>
+            <p class="text-gray-500">Completed sales</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-700">Total Revenue</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ total_revenue }}</p>
+            <p class="text-gray-500">From all sales</p>
+        </div>
+    </div>
+    {% else %}
+    <!-- Regular Staff View -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <a href="{% url 'pos:terminal' %}" class="bg-white p-6 rounded-lg shadow-lg hover:shadow-xl transition-shadow">
+            <h2 class="text-xl font-semibold text-gray-700">Unique Products Available</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ product_count }}</p>
+        </a>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-700">Today's Orders</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ staff_order_count }}</p>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-xl font-semibold text-gray-700">Today's Revenue</h2>
+            <p class="text-3xl font-bold text-gray-900 mt-2">{{ staff_total_revenue }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">Quick Actions</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <a href="{% url 'pos:terminal' %}"
+                class="block p-4 bg-blue-500 text-white text-center rounded-lg hover:bg-blue-600">New Order</a>
+            <a href="{% url 'pos:custom_order' %}"
+                class="block p-4 bg-cyan-500 text-white text-center rounded-lg hover:bg-cyan-600">Custom Order</a>
+            <a href="{% url 'compliance:checklist' %}"
+                class="block p-4 bg-gray-500 text-white text-center rounded-lg hover:bg-gray-600">Daily Checklist</a>
+            <a href="{% url 'waste:log' %}"
+                class="block p-4 bg-red-500 text-white text-center rounded-lg hover:bg-red-600">Log Waste</a>
+        </div>
+    </div>
+    {% if user.is_staff %}
+    <div class="bg-white p-6 rounded-lg shadow-lg mt-8">
+        <h3 class="text-xl font-semibold text-gray-700 mb-4">Management Areas</h3>
+        <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            <a href="{% url 'users:staff_management' %}"
+                class="block p-4 bg-indigo-500 text-white text-center rounded-lg hover:bg-indigo-600">Manage Staff</a>
+            <a href="{% url 'pos:product_management' %}"
+                class="block p-4 bg-green-500 text-white text-center rounded-lg hover:bg-green-600">Manage Products</a>
+            <a href="{% url 'customers:management' %}"
+                class="block p-4 bg-sky-500 text-white text-center rounded-lg hover:bg-sky-600">Customers</a>
+            <a href="{% url 'production:recipe_management' %}"
+                class="block p-4 bg-teal-500 text-white text-center rounded-lg hover:bg-teal-600">Manage Recipes</a>
+            <a href="{% url 'pos:order_tracking' %}"
+                class="block p-4 bg-purple-500 text-white text-center rounded-lg hover:bg-purple-600">Track Orders</a>
+            <a href="{% url 'pos:delivery_dashboard' %}"
+                class="block p-4 bg-amber-500 text-white text-center rounded-lg hover:bg-amber-600">Delivery
+                Dashboard</a>
+            <a href="{% url 'accounting:management' %}"
+                class="block p-4 bg-pink-500 text-white text-center rounded-lg hover:bg-pink-600">Accounting</a>
+            <a href="{% url 'scheduling:management' %}"
+                class="block p-4 bg-orange-500 text-white text-center rounded-lg hover:bg-orange-600">Staff Schedule</a>
+            <a href="{% url 'payroll:management' %}"
+                class="block p-4 bg-lime-500 text-white text-center rounded-lg hover:bg-lime-600">Payroll</a>
+            <a href="{% url 'reports:dashboard' %}"
+                class="block p-4 bg-yellow-500 text-white text-center rounded-lg hover:bg-yellow-600">Sales Reports</a>
+            <a href="{% url 'reports:forecast' %}"
+                class="block p-4 bg-sky-500 text-white text-center rounded-lg hover:bg-sky-600">Demand Forecast</a>
+            <a href="{% url 'waste:report' %}"
+                class="block p-4 bg-red-800 text-white text-center rounded-lg hover:bg-red-900">Waste Report</a>
+            <a href="{% url 'compliance:management' %}"
+                class="block p-4 bg-gray-600 text-white text-center rounded-lg hover:bg-gray-700">Compliance Mgmt</a>
+            <a href="{% url 'feedback:management' %}"
+                class="block p-4 bg-teal-500 text-white text-center rounded-lg hover:bg-teal-600">View Feedback</a>
+            <a href="{% url 'events:management' %}"
+                class="block p-4 bg-cyan-500 text-white text-center rounded-lg hover:bg-cyan-600">Manage Events</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,11 @@
+/* Custom styles for Meal Villa Bakery App */
+
+body {
+    /* You can define a default font or other base styles here */
+}
+
+/* Example of a custom style */
+.btn-primary {
+    @apply px-4 py-2 bg-blue-500 text-white rounded-lg;
+}
+

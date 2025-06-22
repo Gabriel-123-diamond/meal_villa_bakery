@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Recipe Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Recipe Management</h1>
+        <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+        <button id="add-recipe-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Create New Recipe</button>
+    </div>
+    <div id="recipe-list" class="space-y-4">
+        <!-- Recipes will be loaded here -->
+    </div>
+</div>
+
+<!-- Add/Edit Recipe Modal -->
+<div id="recipe-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full overflow-y-auto"><div class="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white"><h3 class="text-2xl text-center font-medium text-gray-900">Create Recipe</h3><div class="p-4"><form id="recipe-form" class="space-y-4"><input type="text" id="recipe-name" placeholder="Recipe Name" class="w-full p-2 border rounded" required><textarea id="recipe-desc" placeholder="Description" class="w-full p-2 border rounded" rows="2"></textarea><textarea id="recipe-instructions" placeholder="Instructions" class="w-full p-2 border rounded" rows="4" required></textarea><h4 class="font-semibold mt-4">Ingredients</h4><div id="ingredients-container" class="space-y-2"></div><button type="button" id="add-ingredient-btn" class="text-sm text-blue-500">+ Add Ingredient</button></form></div><div class="px-4 py-3 flex gap-4"><button id="save-recipe-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Save Recipe</button><button id="close-modal-btn" class="px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button></div></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const listContainer = document.getElementById('recipe-list');
+    const modal = document.getElementById('recipe-modal');
+    const ingredientsContainer = document.getElementById('ingredients-container');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const loadRecipes = () => {
+        fetch('/api/recipes/').then(res => res.json()).then(data => {
+            listContainer.innerHTML = '';
+            data.forEach(r => {
+                listContainer.innerHTML += `<div class="bg-white p-4 rounded-lg shadow"><h3 class="font-bold text-xl">${r.name}</h3><p class="text-sm text-gray-600">${r.description || ''}</p></div>`;
+            });
+        });
+    };
+
+    const addIngredientField = () => {
+        const div = document.createElement('div');
+        div.className = 'grid grid-cols-4 gap-2';
+        div.innerHTML = `<input type="text" placeholder="Ingredient Name" class="ingredient-name col-span-2 p-2 border rounded"><input type="number" placeholder="Qty" class="ingredient-qty p-2 border rounded"><input type="text" placeholder="Unit" class="ingredient-unit p-2 border rounded"><button type="button" class="remove-ingredient-btn text-red-500">X</button>`;
+        ingredientsContainer.appendChild(div);
+    };
+
+    ingredientsContainer.addEventListener('click', e => {
+        if(e.target.classList.contains('remove-ingredient-btn')) e.target.parentElement.remove();
+    });
+
+    document.getElementById('add-recipe-btn').addEventListener('click', () => {
+        document.getElementById('recipe-form').reset();
+        ingredientsContainer.innerHTML = '';
+        addIngredientField();
+        modal.classList.remove('hidden');
+    });
+    
+    document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
+    document.getElementById('add-ingredient-btn').addEventListener('click', addIngredientField);
+
+    document.getElementById('save-recipe-btn').addEventListener('click', () => {
+        const ingredients = [];
+        ingredientsContainer.querySelectorAll('.grid').forEach(div => {
+            ingredients.push({
+                ingredient_name: div.querySelector('.ingredient-name').value,
+                quantity: parseFloat(div.querySelector('.ingredient-qty').value),
+                unit: div.querySelector('.ingredient-unit').value,
+            });
+        });
+        const data = {
+            name: document.getElementById('recipe-name').value,
+            description: document.getElementById('recipe-desc').value,
+            instructions: document.getElementById('recipe-instructions').value,
+            ingredients: ingredients
+        };
+        fetch('/api/recipes/', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.ok ? res.json() : Promise.reject('Save failed'))
+            .then(() => { modal.classList.add('hidden'); loadRecipes(); })
+            .catch(err => alert(err));
+    });
+
+    loadRecipes();
+});
+</script>
+{% endblock %}
+

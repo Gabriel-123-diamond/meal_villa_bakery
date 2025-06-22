@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% block title %}POS Terminal{% endblock %}
+
+{% block content %}
+<a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+<div class="flex flex-col lg:flex-row h-[calc(100vh-120px)] gap-4 font-sans">
+
+    <!-- Products Grid -->
+    <div class="lg:w-2/3 bg-white p-4 rounded-lg shadow-lg flex flex-col">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Products</h2>
+        <input type="text" id="product-search" placeholder="Search products..."
+            class="w-full p-2 border rounded-md mb-4">
+        <div id="product-grid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto flex-grow">
+            <!-- Products loaded here -->
+        </div>
+    </div>
+
+    <!-- Current Order / Cart -->
+    <div class="lg:w-1/3 bg-white p-4 rounded-lg shadow-lg flex flex-col">
+        {% csrf_token %} <!-- Add this inside a form or globally for JS to find -->
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Current Order</h2>
+
+        <!-- Customer Selection -->
+        <div class="relative mb-4">
+            <input type="text" id="customer-search" placeholder="Search Customer (Name or Phone)"
+                class="w-full p-2 border rounded-md">
+            <div id="customer-results" class="hidden absolute w-full bg-white border rounded-b-md shadow-lg z-10"></div>
+            <div id="selected-customer" class="mt-2 text-sm"></div>
+        </div>
+
+        <div id="cart-items" class="flex-grow overflow-y-auto border-y-2 py-2">
+            <p id="cart-empty-msg" class="text-gray-500 text-center py-10">No items in order.</p>
+        </div>
+
+        <!-- Totals & Promo Section -->
+        <div class="py-4 space-y-2">
+            <div class="flex justify-between text-gray-700"><span>Subtotal</span><span id="cart-subtotal">₦0.00</span>
+            </div>
+            <div id="promo-display" class="hidden flex justify-between text-blue-600"><span>Promo</span><span
+                    id="promo-code-applied"></span></div>
+            <div class="flex justify-between text-red-500"><span>Discount</span><span id="cart-discount">-₦0.00</span>
+            </div>
+            <hr>
+            <div class="flex justify-between font-bold text-2xl text-gray-800"><span>Total</span><span
+                    id="cart-total">₦0.00</span></div>
+        </div>
+
+        <!-- Promo Code Input -->
+        <div class="flex mt-2">
+            <input type="text" id="promo-code-input" placeholder="Promo Code"
+                class="w-full p-2 border rounded-l-md focus:outline-none">
+            <button id="apply-promo-btn"
+                class="bg-gray-600 text-white px-4 rounded-r-md hover:bg-gray-700">Apply</button>
+        </div>
+
+        <!-- Payment Section -->
+        <div class="mt-auto pt-4">
+            <select id="payment-method" class="w-full p-2 border rounded-md mb-4">
+                <option value="cash">Cash</option>
+                <option value="card">Card</option>
+                <option value="mobile_payment">Mobile Payment</option>
+            </select>
+            <button id="complete-sale-btn"
+                class="w-full bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 disabled:bg-gray-400"
+                disabled>Complete Sale</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const productGrid = document.getElementById('product-grid');
+        const productSearch = document.getElementById('product-search');
+        const cartItemsContainer = document.getElementById('cart-items');
+        const cartSubtotalEl = document.getElementById('cart-subtotal');
+        const cartDiscountEl = document.getElementById('cart-discount');
+        const cartTotalEl = document.getElementById('cart-total');
+        const completeSaleBtn = document.getElementById('complete-sale-btn');
+        const customerSearchInput = document.getElementById('customer-search');
+        const customerResultsDiv = document.getElementById('customer-results');
+        const selectedCustomerDiv = document.getElementById('selected-customer');
+        const promoInput = document.getElementById('promo-code-input');
+        const applyPromoBtn = document.getElementById('apply-promo-btn');
+        const promoDisplay = document.getElementById('promo-display');
+        const promoCodeApplied = document.getElementById('promo-code-applied');
+
+        // Corrected CSRF Token Retrieval
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        const csrftoken = getCookie('csrftoken');
+
+        let allProducts = [];
+        let allCustomers = [];
+        let cart = {};
+        let selectedCustomerId = null;
+        let currentPromo = null;
+
+        const calculateTotals = () => {
+            let subtotal = 0;
+            Object.keys(cart).forEach(id => {
+                const product = allProducts.find(p => p._id === id);
+                if (product) subtotal += parseFloat(product.price) * cart[id];
+            });
+            let discount = 0;
+            if (currentPromo) {
+                promoDisplay.classList.remove('hidden');
+                promoCodeApplied.textContent = currentPromo.promo_code;
+                if (currentPromo.discount_type === 'percentage') {
+                    discount = subtotal * (currentPromo.value / 100);
+                } else {
+                    discount = currentPromo.value;
+                }
+            } else {
+                promoDisplay.classList.add('hidden');
+            }
+            const total = subtotal - discount;
+            cartSubtotalEl.textContent = `₦${subtotal.toFixed(2)}`;
+            cartDiscountEl.textContent = `-₦${discount.toFixed(2)}`;
+            cartTotalEl.textContent = `₦${total.toFixed(2)}`;
+        };
+
+        const renderCart = () => {
+            cartItemsContainer.innerHTML = '';
+            if (Object.keys(cart).length === 0) {
+                cartItemsContainer.innerHTML = '<p class="text-gray-500 text-center py-10">No items in order.</p>';
+                completeSaleBtn.disabled = true;
+                return;
+            }
+            Object.keys(cart).forEach(id => {
+                const product = allProducts.find(p => p._id === id);
+                if (product) {
+                    cartItemsContainer.innerHTML += `
+                    <div class="flex justify-between items-center py-2 border-b">
+                        <div>
+                            <p class="font-semibold">${product.name}</p>
+                            <p class="text-sm text-gray-500">₦${product.price}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button class="cart-quantity-change text-lg font-bold" data-id="${id}" data-change="-1">-</button>
+                            <span>${cart[id]}</span>
+                            <button class="cart-quantity-change text-lg font-bold" data-id="${id}" data-change="1">+</button>
+                            <button class="remove-from-cart-btn text-red-500 hover:text-red-700" data-id="${id}">×</button>
+                        </div>
+                    </div>
+                `;
+                }
+            });
+            completeSaleBtn.disabled = false;
+            calculateTotals();
+        };
+
+        const renderProducts = (filter = '') => {
+            productGrid.innerHTML = '';
+            const filteredProducts = allProducts.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+            filteredProducts.forEach(p => {
+                productGrid.innerHTML += `
+                <div class="product-card border p-3 rounded-lg shadow cursor-pointer hover:bg-gray-100 flex flex-col justify-between" data-id="${p._id}">
+                    <div><h3 class="font-bold text-gray-800">${p.name}</h3><p class="text-gray-600">₦${p.price}</p></div>
+                    <p class="text-sm text-gray-400 mt-2">Stock: ${p.current_stock}</p>
+                </div>
+            `;
+            });
+        };
+
+        const resetOrderState = () => {
+            cart = {};
+            currentPromo = null;
+            selectedCustomerId = null;
+            selectedCustomerDiv.innerHTML = '';
+            promoInput.value = '';
+            renderCart();
+            loadProducts();
+        };
+
+        const loadProducts = () => fetch('/api/products/').then(res => res.json()).then(data => { allProducts = data; renderProducts(); });
+        const loadCustomers = () => fetch('/api/customers/').then(res => res.json()).then(data => { allCustomers = data; });
+
+        productSearch.addEventListener('input', e => renderProducts(e.target.value));
+        productGrid.addEventListener('click', e => {
+            const card = e.target.closest('.product-card');
+            if (card) { cart[card.dataset.id] = (cart[card.dataset.id] || 0) + 1; renderCart(); }
+        });
+
+        cartItemsContainer.addEventListener('click', e => {
+            const id = e.target.dataset.id;
+            if (e.target.classList.contains('remove-from-cart-btn')) { delete cart[id]; }
+            if (e.target.classList.contains('cart-quantity-change')) {
+                const change = parseInt(e.target.dataset.change);
+                cart[id] += change;
+                if (cart[id] <= 0) delete cart[id];
+            }
+            renderCart();
+        });
+
+        customerSearchInput.addEventListener('input', e => {
+            const query = e.target.value.toLowerCase();
+            if (query.length < 2) { customerResultsDiv.classList.add('hidden'); return; }
+            const results = allCustomers.filter(c => c.name.toLowerCase().includes(query) || (c.phone && c.phone.includes(query)));
+            customerResultsDiv.innerHTML = '';
+            results.forEach(c => { customerResultsDiv.innerHTML += `<div class="p-2 hover:bg-gray-200 cursor-pointer customer-result-item" data-id="${c._id}" data-name="${c.name}">${c.name} - ${c.phone || 'N/A'}</div>`; });
+            customerResultsDiv.classList.remove('hidden');
+        });
+
+        customerResultsDiv.addEventListener('click', e => {
+            if (e.target.classList.contains('customer-result-item')) {
+                selectedCustomerId = e.target.dataset.id;
+                selectedCustomerDiv.innerHTML = `<span class="font-semibold">Customer:</span> ${e.target.dataset.name} <button id="clear-customer" class="text-red-500 ml-2">x</button>`;
+                customerSearchInput.value = '';
+                customerResultsDiv.classList.add('hidden');
+            }
+        });
+
+        selectedCustomerDiv.addEventListener('click', e => {
+            if (e.target.id === 'clear-customer') { selectedCustomerId = null; selectedCustomerDiv.innerHTML = ''; }
+        });
+
+        applyPromoBtn.addEventListener('click', () => {
+            const code = promoInput.value.trim();
+            if (!code) return;
+            fetch('/api/promotions/').then(res => res.json()).then(promos => {
+                const promo = promos.find(p => p.promo_code.toLowerCase() === code.toLowerCase() && p.is_active);
+                if (promo) { currentPromo = promo; alert('Promotion applied!'); }
+                else { currentPromo = null; alert('Invalid or inactive promo code.'); }
+                calculateTotals();
+            });
+        });
+
+        completeSaleBtn.addEventListener('click', () => {
+            const orderData = {
+                items: Object.keys(cart).map(id => ({ product_id: id, quantity: cart[id] })),
+                payment_method: document.getElementById('payment-method').value,
+                promo_code: currentPromo ? currentPromo.promo_code : null,
+                customer_id: selectedCustomerId
+            };
+            fetch('/api/orders/create/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken },
+                body: JSON.stringify(orderData)
+            })
+                .then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err)))
+                .then(data => { alert('Sale completed successfully! Order ID: ' + data._id.slice(-6)); resetOrderState(); })
+                .catch(err => alert('Error: ' + (err.error || JSON.stringify(err))));
+        });
+
+        loadProducts();
+        loadCustomers();
+        renderCart();
+    });
+</script>
+{% endblock %}

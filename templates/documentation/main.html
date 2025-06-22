@@ -1,0 +1,60 @@
+{% extends 'base.html' %}
+{% block title %}Help & Documentation{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-extrabold text-gray-800 mb-8">System Documentation</h1>
+    <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+
+    <div class="space-y-8">
+        <!-- POS Terminal Guide -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">How to Use the POS Terminal</h2>
+            <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                <li>Navigate to the <a href="{% url 'pos:terminal' %}" class="text-blue-500 hover:underline">POS Terminal</a> from the dashboard.</li>
+                <li>Click on product cards on the left to add them to the current order.</li>
+                <li>Use the `+` and `-` buttons in the cart to adjust quantities.</li>
+                <li>If the customer has a promo code, enter it and click "Apply".</li>
+                <li>Select the payment method from the dropdown menu.</li>
+                <li>Click "Complete Sale" to finalize the order. The cart will automatically clear for the next customer.</li>
+            </ol>
+        </div>
+
+        <!-- Order Tracking Guide -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">How to Track Orders</h2>
+            <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                <li>Navigate to the <a href="{% url 'pos:order_tracking' %}" class="text-blue-500 hover:underline">Track Orders</a> page.</li>
+                <li>The page shows all recent orders, with the newest at the top.</li>
+                <li>To update an order's status, simply select a new status from the dropdown (e.g., from "Pending" to "In Progress").</li>
+                <li>If an order is "Cancelled", the items from that order will be automatically added back to the product inventory.</li>
+            </ol>
+        </div>
+
+        <!-- Staff Management Guide -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">How to Manage Staff</h2>
+            <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                <li>Navigate to the <a href="{% url 'users:staff_management' %}" class="text-blue-500 hover:underline">Manage Staff</a> page.</li>
+                <li>Click "Add New Staff" to open a form and create a new user. You must assign them a role and a temporary password.</li>
+                <li>Click the "Edit" button to change a user's details or role.</li>
+                <li>Click the "Delete" button to permanently remove a user from the system.</li>
+            </ol>
+        </div>
+        
+        <!-- Daily Checklist Guide -->
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-bold text-gray-900 mb-4">How to Use the Daily Checklist</h2>
+            <ol class="list-decimal list-inside space-y-2 text-gray-700">
+                <li>All employees should visit the <a href="{% url 'compliance:checklist' %}" class="text-blue-500 hover:underline">Daily Checklist</a> page during their shift.</li>
+                <li>Review the list of required health and safety tasks.</li>
+                <li>After completing a task, click the "Log Task" button next to it.</li>
+                <li>You can add optional notes (e.g., "Fridge B was at 3°C") before submitting the log.</li>
+                <li>Managers can view all submitted logs from the "Compliance Management" page.</li>
+            </ol>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,41 @@
+Implemented Features:
+
+Point-of-Sale: Full UIs for standard, custom, and online orders.
+
+Inventory Management: Full backend logic and partial UI for tracking raw materials, supplies, and finished products.
+
+Recipe & Production: Full backend logic and UI for creating recipes, calculating costs, and executing production runs.
+
+Order Management: Full backend and UI for tracking order status and history, including custom orders.
+
+CRM: Full backend and UI for managing customers and their loyalty points.
+
+Staff Management: Full backend and UI for managing staff, roles, and performance notes.
+
+Accounting & Financials: Full backend and UI for sales reporting, P&L statements, supplier management, and purchase orders.
+
+Payroll: Full backend and UI for setting pay rates, logging time, adding adjustments, and generating reports.
+
+Compliance, Feedback, Events, Waste: Full backend and UI for managing these operational modules.
+
+Security & Documentation: Secure authentication, password management, and a user help guide are in place.
+
+Remaining Features (High-Level):
+
+Advanced Order Management:
+
+Delivery Coordination: A dashboard to manage delivery routes, assign drivers, and track the real-time status of deliveries.
+
+Advanced CRM:
+
+Targeted Marketing: Tools to send tailored email or SMS campaigns to specific customer segments.
+
+Advanced Accounting & Financials:
+
+Budgeting and forecasting tools.
+
+Direct integration or data export for accounting software like QuickBooks.
+
+Security:
+
+Implementing Multi-Factor Authentication (MFA) for staff logins.

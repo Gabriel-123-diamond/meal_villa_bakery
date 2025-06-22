@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% block title %}Delivery & Order Status{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Delivery & Order Status</h1>
+        <button id="refresh-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Refresh</button>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Pending Column -->
+        <div class="bg-red-100 p-4 rounded-lg">
+            <h2 class="text-xl font-bold text-red-800 mb-4 text-center">Pending</h2>
+            <div id="pending-orders" class="space-y-4 min-h-[100px]"></div>
+        </div>
+
+        <!-- In Progress Column -->
+        <div class="bg-yellow-100 p-4 rounded-lg">
+            <h2 class="text-xl font-bold text-yellow-800 mb-4 text-center">In Progress</h2>
+            <div id="inprogress-orders" class="space-y-4 min-h-[100px]"></div>
+        </div>
+
+        <!-- Ready for Pickup Column -->
+        <div class="bg-green-100 p-4 rounded-lg">
+            <h2 class="text-xl font-bold text-green-800 mb-4 text-center">Ready for Pickup</h2>
+            <div id="ready-orders" class="space-y-4 min-h-[100px]"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const createOrderCard = (order) => {
+        const itemsHtml = order.items.map(item => `<li>${item.quantity} x ${item.name}</li>`).join('');
+        const nextStatus = {
+            'pending': 'in_progress',
+            'in_progress': 'ready_for_pickup',
+            'ready_for_pickup': 'completed',
+        };
+        const nextActionText = {
+            'pending': 'Start Production',
+            'in_progress': 'Mark as Ready',
+            'ready_for_pickup': 'Mark as Completed',
+        };
+        
+        const actionButton = nextStatus[order.status] 
+            ? `<button data-id="${order._id}" data-next-status="${nextStatus[order.status]}" class="update-status-btn mt-4 w-full bg-blue-500 text-white py-1 rounded-md hover:bg-blue-600">${nextActionText[order.status]}</button>` 
+            : '';
+            
+        return `
+            <div class="bg-white p-4 rounded-lg shadow">
+                <p class="font-bold">${order.customer_name}</p>
+                <p class="text-xs text-gray-500">ID: ${order._id.slice(-6)} | Placed: ${new Date(order.created_at).toLocaleTimeString()}</p>
+                <ul class="list-disc list-inside text-sm mt-2">${itemsHtml}</ul>
+                ${actionButton}
+            </div>
+        `;
+    };
+
+    const loadOrders = () => {
+        const columns = {
+            'pending': document.getElementById('pending-orders'),
+            'in_progress': document.getElementById('inprogress-orders'),
+            'ready_for_pickup': document.getElementById('ready-orders'),
+        };
+
+        Object.values(columns).forEach(col => col.innerHTML = '<p class="text-center text-gray-500">Loading...</p>');
+
+        fetch('/api/orders/')
+            .then(res => res.json())
+            .then(orders => {
+                Object.values(columns).forEach(col => col.innerHTML = ''); // Clear loading text
+                
+                const activeOrders = orders.filter(o => ['pending', 'in_progress', 'ready_for_pickup'].includes(o.status));
+                
+                if (activeOrders.length === 0) {
+                    columns.pending.innerHTML = '<p class="text-center text-gray-500">No active orders.</p>';
+                } else {
+                    activeOrders.forEach(order => {
+                        if (columns[order.status]) {
+                            columns[order.status].innerHTML += createOrderCard(order);
+                        }
+                    });
+                }
+            });
+    };
+
+    document.addEventListener('click', e => {
+        if (e.target.classList.contains('update-status-btn')) {
+            const orderId = e.target.dataset.id;
+            const nextStatus = e.target.dataset.nextStatus;
+            
+            fetch(`/api/orders/${orderId}/`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+                body: JSON.stringify({ status: nextStatus })
+            })
+            .then(res => res.ok ? res.json() : Promise.reject('Failed to update status'))
+            .then(() => loadOrders())
+            .catch(err => alert(err));
+        }
+    });
+
+    document.getElementById('refresh-btn').addEventListener('click', loadOrders);
+    
+    loadOrders(); // Initial load
+});
+</script>
+{% endblock %}
+

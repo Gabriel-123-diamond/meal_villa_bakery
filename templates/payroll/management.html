@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Payroll Management{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Payroll Management</h1>
+    <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+
+    <!-- Add Adjustment Section -->
+    <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Add Bonus or Deduction</h2>
+        <form id="adjustment-form" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            {% csrf_token %}
+            <div class="md:col-span-2 relative">
+                <label for="adj-staff-id" class="block text-sm font-medium">Employee Staff ID</label>
+                <input type="text" id="adj-staff-id" class="w-full p-2 border rounded-md mt-1"
+                    placeholder="Enter Staff ID..." required>
+                <p id="adj-user-name" class="text-sm text-gray-600 mt-1 h-5"></p>
+                <input type="hidden" id="adj-user-id">
+            </div>
+            <div>
+                <label for="adjustment-type" class="block text-sm font-medium">Type</label>
+                <select id="adjustment-type" class="w-full p-2 border rounded-md mt-1">
+                    <option value="bonus">Bonus</option>
+                    <option value="deduction">Deduction</option>
+                </select>
+            </div>
+            <div>
+                <label for="adjustment-amount" class="block text-sm font-medium">Amount (₦)</label>
+                <input type="number" id="adjustment-amount" min="0.01" step="0.01"
+                    class="w-full p-2 border rounded-md mt-1" required>
+            </div>
+            <div class="md:col-span-3">
+                <label for="adjustment-reason" class="block text-sm font-medium">Reason</label>
+                <input type="text" id="adjustment-reason" class="w-full p-2 border rounded-md mt-1" required>
+            </div>
+            <button type="submit"
+                class="bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-indigo-700">Add
+                Adjustment</button>
+        </form>
+    </div>
+
+    <!-- Generate Report Section -->
+    <div class="bg-white p-4 rounded-lg shadow-md mb-6">
+        <div class="flex flex-wrap gap-4 items-end">
+            <div>
+                <label for="month-select" class="block text-sm font-medium text-gray-700">Select Month</label>
+                <input type="month" id="month-select"
+                    class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3">
+            </div>
+            <button id="generate-report-btn"
+                class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">Generate Payroll
+                Report</button>
+            <a href="{% url 'payroll:log' %}"
+                class="bg-gray-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-gray-700">View Actions Log</a>
+        </div>
+    </div>
+
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-800 text-white">
+                <tr>
+                    <th class="py-3 px-2 text-left">Employee</th>
+                    <th class="py-3 px-2 text-left">Staff ID</th>
+                    <th class="py-3 px-2 text-left">Total Hours</th>
+                    <th class="py-3 px-2 text-left">Monthly Salary</th>
+                    <th class="py-3 px-2 text-left">Gross Pay</th>
+                    <th class="py-3 px-2 text-left">Bonuses</th>
+                    <th class="py-3 px-2 text-left">Deductions</th>
+                    <th class="py-3 px-2 text-left">Net Pay</th>
+                </tr>
+            </thead>
+            <tbody id="payroll-table-body"></tbody>
+        </table>
+    </div>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const generateBtn = document.getElementById('generate-report-btn');
+        const tableBody = document.getElementById('payroll-table-body');
+        const adjForm = document.getElementById('adjustment-form');
+        const adjStaffIdInput = document.getElementById('adj-staff-id');
+        const adjUserNameP = document.getElementById('adj-user-name');
+        const adjUserIdInput = document.getElementById('adj-user-id');
+        const monthSelect = document.getElementById('month-select');
+        const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        let allUsers = [];
+
+        const formatNaira = (num) => `₦${parseFloat(num).toFixed(2)}`;
+
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        monthSelect.value = `${year}-${month}`;
+
+        fetch('/api/users/').then(res => res.json()).then(data => { allUsers = data; });
+
+        adjStaffIdInput.addEventListener('input', e => {
+            const staffId = e.target.value;
+            const user = allUsers.find(u => u.username === staffId);
+            if (user) {
+                adjUserNameP.textContent = `${user.first_name} ${user.last_name}`;
+                adjUserIdInput.value = user.id;
+            } else {
+                adjUserNameP.textContent = '';
+                adjUserIdInput.value = '';
+            }
+        });
+
+        const generateReport = () => {
+            const monthValue = monthSelect.value;
+            if (!monthValue) { alert('Please select a month.'); return; }
+
+            const [year, month] = monthValue.split('-');
+            const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+
+            tableBody.innerHTML = '<tr><td colspan="8" class="text-center py-10">Loading report...</td></tr>';
+            const url = `/api/payroll/report/?start_date=${startDate}&end_date=${endDate}`;
+
+            fetch(url).then(res => res.ok ? res.json() : Promise.reject('Failed to load report.'))
+                .then(data => {
+                    tableBody.innerHTML = '';
+                    data.forEach(row => {
+                        tableBody.innerHTML += `
+                    <tr>
+                        <td class="py-3 px-2 text-left">${row.user_name}</td>
+                        <td class="py-3 px-2 text-left">${row.staff_id}</td>
+                        <td class="py-3 px-2 text-left">${row.total_hours}</td>
+                        <td class="py-3 px-2 text-left flex items-center gap-2">
+                            <input type="number" value="${parseFloat(row.monthly_salary).toFixed(2)}" class="w-24 p-1 border rounded" data-user-id="${row.user_id}" min="0.00" step="100.00">
+                            <button data-user-id="${row.user_id}" class="save-salary-btn text-xs bg-gray-200 px-2 py-1 rounded hover:bg-gray-300">Save</button>
+                        </td>
+                        <td class="py-3 px-2 text-left">${formatNaira(row.gross_pay)}</td>
+                        <td class="py-3 px-2 text-left text-green-600">${formatNaira(row.bonuses)}</td>
+                        <td class="py-3 px-2 text-left text-red-600">${formatNaira(row.deductions)}</td>
+                        <td class="py-3 px-2 text-left font-bold">${formatNaira(row.net_pay)}</td>
+                    </tr>`;
+                    });
+                }).catch(err => { tableBody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-red-500">${err}</td></tr>`; });
+        };
+
+        adjForm.addEventListener('submit', e => {
+            e.preventDefault();
+            const userId = adjUserIdInput.value;
+            if (!userId) { alert('Please enter a valid Staff ID.'); return; }
+            const data = { user: userId, adjustment_type: document.getElementById('adjustment-type').value, amount: document.getElementById('adjustment-amount').value, reason: document.getElementById('adjustment-reason').value };
+            fetch('/api/payroll/adjustments/', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken }, body: JSON.stringify(data) })
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to add adjustment.'))
+                .then(() => {
+                    alert('Adjustment added successfully!');
+                    adjForm.reset();
+                    adjUserNameP.textContent = '';
+                    generateReport();
+                })
+                .catch(err => alert(err));
+        });
+
+        tableBody.addEventListener('click', e => {
+            if (e.target.classList.contains('save-salary-btn')) {
+                const userId = e.target.dataset.userId;
+                const salaryInput = tableBody.querySelector(`input[data-user-id="${userId}"]`);
+                const newSalary = salaryInput.value;
+                fetch(`/api/payroll/profile/${userId}/`, { method: 'PUT', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrftoken }, body: JSON.stringify({ monthly_salary: newSalary }) })
+                    .then(res => res.ok ? res.json() : Promise.reject('Failed to save salary.'))
+                    .then(() => { alert('Salary updated!'); generateReport(); })
+                    .catch(err => alert(err));
+            }
+        });
+
+        generateBtn.addEventListener('click', generateReport);
+        generateReport();
+    });
+</script>
+{% endblock %}

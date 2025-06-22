@@ -1,0 +1,81 @@
+{% extends 'base.html' %}
+{% block title %}Customer Management{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Customer Management</h1>
+        <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+        <button id="add-customer-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Add New Customer</button>
+    </div>
+    <div class="bg-white p-6 rounded-lg shadow-lg">
+        <table class="min-w-full bg-white">
+            <thead class="bg-gray-800 text-white">
+                <tr>
+                    <th class="py-3 px-4 text-left">Name</th>
+                    <th class="py-3 px-4 text-left">Email</th>
+                    <th class="py-3 px-4 text-left">Phone</th>
+                    <th class="py-3 px-4 text-left">Loyalty Points</th>
+                    <th class="py-3 px-4 text-left">Actions</th>
+                </tr>
+            </thead>
+            <tbody id="customer-table-body"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Add/Edit Customer Modal -->
+<div id="customer-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-20"><div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"><h3 id="customer-modal-title" class="text-2xl font-medium text-center">Add Customer</h3><form id="customer-form" class="space-y-4 p-4"><input type="hidden" id="customer-id"><input type="text" id="customer-name" placeholder="Full Name" class="w-full p-2 border rounded" required><input type="email" id="customer-email" placeholder="Email Address" class="w-full p-2 border rounded"><input type="tel" id="customer-phone" placeholder="Phone Number" class="w-full p-2 border rounded"></form><div class="px-4 py-3 flex gap-4"><button id="save-customer-btn" class="w-full bg-green-500 text-white py-2 rounded">Save</button><button id="close-customer-modal-btn" class="w-full bg-gray-500 text-white py-2 rounded">Cancel</button></div></div></div>
+
+<!-- Adjust Points Modal -->
+<div id="points-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full z-20"><div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"><h3 class="text-2xl font-medium text-center">Adjust Points</h3><form id="points-form" class="space-y-4 p-4"><input type="hidden" id="points-customer-id"><input type="number" id="points-to-adjust" placeholder="Points to Add/Subtract" class="w-full p-2 border rounded" required><input type="text" id="points-reason" placeholder="Reason for adjustment" class="w-full p-2 border rounded" required></form><div class="px-4 py-3 flex gap-4"><button id="save-points-btn" class="w-full bg-blue-500 text-white py-2 rounded">Adjust Points</button><button id="close-points-modal-btn" class="w-full bg-gray-500 text-white py-2 rounded">Cancel</button></div></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableBody = document.getElementById('customer-table-body');
+    const customerModal = document.getElementById('customer-modal');
+    const pointsModal = document.getElementById('points-modal');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const loadCustomers = () => {
+        fetch('/api/customers/').then(res => res.json()).then(data => {
+            tableBody.innerHTML = '';
+            data.forEach(c => {
+                tableBody.innerHTML += `<tr><td class="py-3 px-4">${c.name}</td><td class="py-3 px-4">${c.email || 'N/A'}</td><td class="py-3 px-4">${c.phone || 'N/A'}</td><td class="py-3 px-4 font-bold">${c.loyalty_points || 0}</td><td class="py-3 px-4"><button data-id="${c._id}" class="adjust-points-btn text-sm bg-blue-500 text-white py-1 px-2 rounded">Adjust Points</button></td></tr>`;
+            });
+        });
+    };
+
+    const openModal = (modalElement) => modalElement.classList.remove('hidden');
+    const closeModal = (modalElement) => modalElement.classList.add('hidden');
+    
+    document.getElementById('add-customer-btn').addEventListener('click', () => openModal(customerModal));
+    document.getElementById('close-customer-modal-btn').addEventListener('click', () => closeModal(customerModal));
+    document.getElementById('save-customer-btn').addEventListener('click', () => {
+        const data = { name: document.getElementById('customer-name').value, email: document.getElementById('customer-email').value, phone: document.getElementById('customer-phone').value };
+        fetch('/api/customers/', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.ok ? res.json() : Promise.reject('Save failed'))
+            .then(() => { closeModal(customerModal); loadCustomers(); document.getElementById('customer-form').reset(); })
+            .catch(err => alert(err));
+    });
+
+    tableBody.addEventListener('click', e => {
+        if (e.target.classList.contains('adjust-points-btn')) {
+            document.getElementById('points-customer-id').value = e.target.dataset.id;
+            openModal(pointsModal);
+        }
+    });
+    document.getElementById('close-points-modal-btn').addEventListener('click', () => closeModal(pointsModal));
+    document.getElementById('save-points-btn').addEventListener('click', () => {
+        const customerId = document.getElementById('points-customer-id').value;
+        const data = { points: parseInt(document.getElementById('points-to-adjust').value), reason: document.getElementById('points-reason').value };
+        fetch(`/api/customers/${customerId}/adjust-points/`, { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.ok ? res.json() : Promise.reject('Failed to adjust points.'))
+            .then(() => { closeModal(pointsModal); loadCustomers(); document.getElementById('points-form').reset(); })
+            .catch(err => alert(err));
+    });
+
+    loadCustomers();
+});
+</script>
+{% endblock %}
+

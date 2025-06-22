@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+{% block title %}Checkout{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Checkout</h1>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4">Your Information</h2>
+            <form id="checkout-form" class="space-y-4">
+                {% csrf_token %}
+                <input type="text" id="customer-name" placeholder="Full Name" class="w-full p-2 border rounded" required>
+                <input type="email" id="customer-email" placeholder="Email Address" class="w-full p-2 border rounded" required>
+                <input type="tel" id="customer-phone" placeholder="Phone Number" class="w-full p-2 border rounded">
+            </form>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <h2 class="text-2xl font-semibold mb-4">Order Summary</h2>
+            <div id="summary-items" class="space-y-2 border-b pb-2 mb-2">
+                {% for item in cart %}
+                <div class="flex justify-between"><p>${item.product.name} x ${item.quantity}</p><span>$${item.total_price|floatformat:2}</span></div>
+                {% endfor %}
+            </div>
+            <div class="flex justify-between font-bold text-xl"><p>Total</p><span>$${cart.get_total_price|floatformat:2}</span></div>
+            <button id="place-order-btn" class="mt-6 w-full bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600">Place Order</button>
+        </div>
+    </div>
+</div>
+<script>
+document.getElementById('place-order-btn').addEventListener('click', () => {
+    const cartItems = JSON.parse('{{ cart.cart|safe }}');
+    const itemsForApi = Object.keys(cartItems).map(id => ({ product_id: id, quantity: cartItems[id].quantity }));
+    const data = {
+        items: itemsForApi,
+        customer_name: document.getElementById('customer-name').value,
+        payment_method: 'card' // Default for online orders
+    };
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    fetch('/api/orders/create/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+        body: JSON.stringify(data)
+    })
+    .then(res => res.ok ? res.json() : Promise.reject('Failed to place order'))
+    .then(order => {
+        // Clear the cart after successful order
+        fetch('/api/cart/', { method: 'DELETE', headers: {'X-CSRFToken': csrftoken}});
+        alert('Your order has been placed successfully!');
+        window.location.href = '/'; // Redirect to home
+    })
+    .catch(err => alert(err));
+});
+</script>
+{% endblock %}
+

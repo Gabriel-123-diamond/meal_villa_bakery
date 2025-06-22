@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block title %}Online Menu{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-extrabold text-gray-800 mb-8 text-center">Our Menu</h1>
+    <div id="product-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        {% for product in products %}
+        <div class="bg-white rounded-lg shadow-lg overflow-hidden">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold text-gray-900">${product.name}</h2>
+                <p class="mt-2 text-gray-600">${product.description|default:"No description available."}</p>
+                <div class="mt-4 flex justify-between items-center">
+                    <span class="text-xl font-bold text-gray-800">$${product.price|floatformat:2}</span>
+                    <button class="add-to-cart-btn bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600" data-id="${product._id}">Add to Cart</button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    document.getElementById('product-catalog-grid').addEventListener('click', e => {
+        if(e.target.classList.contains('add-to-cart-btn')) {
+            const productId = e.target.dataset.id;
+            fetch('/api/cart/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+                body: JSON.stringify({ product_id: productId })
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('cart-count').textContent = data.cart_item_count;
+                alert(data.success);
+            });
+        }
+    });
+});
+</script>
+{% endblock %}
+

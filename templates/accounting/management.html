@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% block title %}Accounting Management{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Accounting Management</h1>
+    <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+
+    <!-- Supplier Management Section -->
+    <div class="mb-12">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-gray-700">Suppliers</h2>
+            <button id="add-supplier-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Add New Supplier</button>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <table class="min-w-full bg-white"><thead class="bg-gray-800 text-white"><tr><th class="w-1/4 text-left py-3 px-4 uppercase font-semibold text-sm">Name</th><th class="w-1/4 text-left py-3 px-4 uppercase font-semibold text-sm">Contact Person</th><th class="w-1/4 text-left py-3 px-4 uppercase font-semibold text-sm">Email</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Phone</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Actions</th></tr></thead><tbody id="supplier-table-body"></tbody></table>
+        </div>
+    </div>
+
+    <!-- Purchase Order Section -->
+    <div>
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-semibold text-gray-700">Purchase Orders</h2>
+            <button id="add-po-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Create Purchase Order</button>
+        </div>
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <table class="min-w-full bg-white"><thead class="bg-gray-800 text-white"><tr><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Order ID</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Supplier</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Date</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Total Cost</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Status</th><th class="text-left py-3 px-4 uppercase font-semibold text-sm">Actions</th></tr></thead><tbody id="po-table-body"></tbody></table>
+        </div>
+    </div>
+</div>
+
+<!-- Add/Edit Supplier Modal -->
+<div id="supplier-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full"><div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"><h3 id="supplier-modal-title" class="text-2xl text-center font-medium text-gray-900">Add Supplier</h3><form id="supplier-form" class="space-y-4 p-4"><input type="hidden" id="supplier-id"><input type="text" id="supplier-name" placeholder="Supplier Name" class="w-full p-2 border rounded" required><input type="text" id="supplier-contact" placeholder="Contact Person" class="w-full p-2 border rounded"><input type="email" id="supplier-email" placeholder="Email" class="w-full p-2 border rounded"><input type="tel" id="supplier-phone" placeholder="Phone" class="w-full p-2 border rounded" required></form><div class="px-4 py-3"><button id="save-supplier-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Save</button><button id="close-supplier-modal-btn" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button></div></div></div>
+
+<!-- Create Purchase Order Modal -->
+<div id="po-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full"><div class="relative top-10 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white"><h3 class="text-2xl text-center font-medium text-gray-900">Create Purchase Order</h3><form id="po-form" class="space-y-4 p-4"><select id="po-supplier-select" class="w-full p-2 border rounded" required><option value="">Select a Supplier</option></select><div id="po-items-container" class="space-y-2"></div><button type="button" id="add-po-item-btn" class="text-sm text-blue-500">+ Add Item</button></form><div class="px-4 py-3"><button id="save-po-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Place Order</button><button id="close-po-modal-btn" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button></div></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // CSRF Token setup
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '';
+
+    // Supplier elements
+    const supplierModal = document.getElementById('supplier-modal');
+    const supplierTableBody = document.getElementById('supplier-table-body');
+    
+    // Purchase Order elements
+    const poModal = document.getElementById('po-modal');
+    const poTableBody = document.getElementById('po-table-body');
+    const poItemsContainer = document.getElementById('po-items-container');
+
+    // --- Core Data Loading Functions ---
+    const loadSuppliers = () => {
+        fetch('/api/suppliers/').then(res => res.json()).then(data => {
+            supplierTableBody.innerHTML = '';
+            data.forEach(s => {
+                supplierTableBody.innerHTML += `<tr><td class="py-3 px-4">${s.name}</td><td class="py-3 px-4">${s.contact_person || ''}</td><td class="py-3 px-4">${s.email || ''}</td><td class="py-3 px-4">${s.phone}</td><td class="py-3 px-4"><button class="text-blue-500 text-sm">Edit</button></td></tr>`;
+            });
+        });
+    };
+
+    const loadPurchaseOrders = () => {
+        fetch('/api/purchase-orders/').then(res => res.json()).then(data => {
+            poTableBody.innerHTML = '';
+            data.forEach(po => {
+                const statusClass = po.status === 'received' ? 'bg-green-200 text-green-800' : 'bg-yellow-200 text-yellow-800';
+                const receiveBtn = po.status !== 'received' ? `<button data-id="${po._id}" class="receive-po-btn text-sm bg-green-500 text-white py-1 px-2 rounded">Receive</button>` : 'Received';
+                poTableBody.innerHTML += `<tr><td class="py-3 px-4">${po._id.slice(-6)}</td><td class="py-3 px-4">${po.supplier_name}</td><td class="py-3 px-4">${new Date(po.order_date).toLocaleDateString()}</td><td class="py-3 px-4">$${parseFloat(po.total_cost).toFixed(2)}</td><td class="py-3 px-4"><span class="py-1 px-3 rounded-full text-xs ${statusClass}">${po.status}</span></td><td class="py-3 px-4">${receiveBtn}</td></tr>`;
+            });
+        });
+    };
+
+    // --- Supplier Modal Logic ---
+    document.getElementById('add-supplier-btn').addEventListener('click', () => supplierModal.classList.remove('hidden'));
+    document.getElementById('close-supplier-modal-btn').addEventListener('click', () => supplierModal.classList.add('hidden'));
+    document.getElementById('save-supplier-btn').addEventListener('click', () => {
+        const data = {
+            name: document.getElementById('supplier-name').value,
+            contact_person: document.getElementById('supplier-contact').value,
+            email: document.getElementById('supplier-email').value,
+            phone: document.getElementById('supplier-phone').value
+        };
+        fetch('/api/suppliers/', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.json()).then(() => { loadSuppliers(); supplierModal.classList.add('hidden'); });
+    });
+
+    // --- Purchase Order Modal Logic ---
+    document.getElementById('add-po-btn').addEventListener('click', () => {
+        // Load suppliers into dropdown before showing
+        const supplierSelect = document.getElementById('po-supplier-select');
+        supplierSelect.innerHTML = '<option value="">Select a Supplier</option>';
+        fetch('/api/suppliers/').then(res => res.json()).then(data => {
+            data.forEach(s => {
+                supplierSelect.innerHTML += `<option value="${s._id}">${s.name}</option>`;
+            });
+            poItemsContainer.innerHTML = ''; // Clear previous items
+            addPOItemField(); // Add one initial item field
+            poModal.classList.remove('hidden');
+        });
+    });
+
+    const addPOItemField = () => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'grid grid-cols-4 gap-2 items-center';
+        itemDiv.innerHTML = `<input type="text" placeholder="Item Name" class="po-item-name col-span-2 w-full p-2 border rounded" required><input type="number" placeholder="Qty" class="po-item-qty w-full p-2 border rounded" required min="0.1" step="0.1"><input type="number" placeholder="Cost/Unit" class="po-item-cost w-full p-2 border rounded" required min="0.01" step="0.01"><button type="button" class="remove-po-item-btn text-red-500">X</button>`;
+        poItemsContainer.appendChild(itemDiv);
+    };
+    
+    document.getElementById('add-po-item-btn').addEventListener('click', addPOItemField);
+    poItemsContainer.addEventListener('click', e => { if(e.target.classList.contains('remove-po-item-btn')) e.target.parentElement.remove(); });
+    document.getElementById('close-po-modal-btn').addEventListener('click', () => poModal.classList.add('hidden'));
+
+    document.getElementById('save-po-btn').addEventListener('click', () => {
+        const items = [];
+        poItemsContainer.querySelectorAll('.grid').forEach(div => {
+            items.push({
+                item_name: div.querySelector('.po-item-name').value,
+                quantity: parseFloat(div.querySelector('.po-item-qty').value),
+                cost_per_unit: parseFloat(div.querySelector('.po-item-cost').value)
+            });
+        });
+        const data = { supplier_id: document.getElementById('po-supplier-select').value, items: items };
+        fetch('/api/purchase-orders/', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.json()).then(() => { loadPurchaseOrders(); poModal.classList.add('hidden'); });
+    });
+    
+    // --- Receive PO Logic ---
+    poTableBody.addEventListener('click', e => {
+        if(e.target.classList.contains('receive-po-btn')) {
+            const poId = e.target.dataset.id;
+            if(confirm(`Are you sure you want to receive order ${poId.slice(-6)}? This will update inventory.`)) {
+                fetch(`/api/purchase-orders/${poId}/receive/`, { method: 'POST', headers: {'X-CSRFToken': csrftoken} })
+                    .then(res => res.json()).then(() => loadPurchaseOrders());
+            }
+        }
+    });
+
+    // Initial load
+    loadSuppliers();
+    loadPurchaseOrders();
+});
+</script>
+{% endblock %}
+

@@ -1,0 +1,88 @@
+{% extends 'base.html' %}
+{% block title %}Place Custom Order{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-2xl">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Create a Custom Order</h1>
+    <div class="bg-white p-8 rounded-lg shadow-lg">
+        <form id="custom-order-form" class="space-y-6">
+            {% csrf_token %}
+            <h3 class="text-xl font-semibold text-gray-700 border-b pb-2">Customer Details</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="customer-name" class="block text-sm font-medium text-gray-700">Customer Name</label>
+                    <input type="text" id="customer-name" class="w-full mt-1 p-2 border rounded-md" required>
+                </div>
+                <div>
+                    <label for="customer-phone" class="block text-sm font-medium text-gray-700">Customer Phone</label>
+                    <input type="tel" id="customer-phone" class="w-full mt-1 p-2 border rounded-md" required>
+                </div>
+            </div>
+
+            <h3 class="text-xl font-semibold text-gray-700 border-b pb-2 pt-4">Order Details</h3>
+            <div>
+                <label for="order-description" class="block text-sm font-medium text-gray-700">Order Description</label>
+                <textarea id="order-description" rows="4" class="w-full mt-1 p-2 border rounded-md" placeholder="e.g., 2-tier vanilla birthday cake, blue frosting, 'Happy Birthday John'" required></textarea>
+            </div>
+             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label for="quoted-price" class="block text-sm font-medium text-gray-700">Quoted Price (₦)</label>
+                    <input type="number" id="quoted-price" min="0.01" step="0.01" class="w-full mt-1 p-2 border rounded-md" required>
+                </div>
+                <div>
+                    <label for="payment-method" class="block text-sm font-medium text-gray-700">Payment Method</label>
+                    <select id="payment-method" class="w-full mt-1 p-2 border rounded-md"><option value="cash">Cash</option><option value="card">Card</option><option value="mobile_payment">Mobile Payment</option></select>
+                </div>
+            </div>
+            
+            <div class="pt-4">
+                <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-green-700">Submit Custom Order</button>
+            </div>
+        </form>
+         <div id="success-msg" class="hidden mt-6 p-4 text-green-700 bg-green-100 rounded-lg">Custom order placed successfully!</div>
+    </div>
+</div>
+
+<script>
+document.getElementById('custom-order-form').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = e.target;
+    
+    // We treat the custom order as a single line item with a special ID
+    const orderItems = [{
+        product_id: 'CUSTOM_ORDER',
+        quantity: 1,
+        name: 'Custom Order', // This name will appear in the order history
+        price_at_sale: parseFloat(form['quoted-price'].value)
+    }];
+
+    const data = {
+        items: orderItems,
+        customer_name: form['customer-name'].value,
+        payment_method: form['payment-method'].value,
+        notes: form['order-description'].value, // The details go into the order notes
+    };
+
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+    // We can use the existing order creation API.
+    // A future improvement would be to adapt the API to better handle custom orders.
+    fetch('/api/orders/create/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+        body: JSON.stringify(data)
+    })
+    .then(res => {
+        if (!res.ok) return res.json().then(err => Promise.reject(err));
+        return res.json();
+    })
+    .then(() => {
+        document.getElementById('success-msg').classList.remove('hidden');
+        form.reset();
+        setTimeout(() => document.getElementById('success-msg').classList.add('hidden'), 4000);
+    })
+    .catch(err => alert('Error placing order: ' + JSON.stringify(err.error || err)));
+});
+</script>
+{% endblock %}
+

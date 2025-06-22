@@ -1,0 +1,40 @@
+{% extends 'base.html' %}
+{% block title %}Upcoming Events{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <h1 class="text-3xl font-bold text-gray-800 mb-6">Upcoming Events</h1>
+    <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+    <div id="event-list-container" class="space-y-6">
+        <!-- Event cards will be loaded here -->
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const container = document.getElementById('event-list-container');
+    fetch('/api/events/').then(res => res.json()).then(events => {
+        container.innerHTML = '';
+        if (events.length === 0) {
+            container.innerHTML = '<p>No upcoming events scheduled. Please check back soon!</p>';
+            return;
+        }
+        events.forEach(event => {
+            const startTime = new Date(event.start_time).toLocaleString();
+            const spotsLeft = event.max_attendees - (event.registered_attendees?.length || 0);
+            container.innerHTML += `
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h2 class="text-2xl font-bold text-gray-900">${event.title}</h2>
+                    <p class="text-sm text-gray-500">${startTime}</p>
+                    <p class="mt-4 text-gray-700">${event.description}</p>
+                    <div class="mt-4 flex justify-between items-center">
+                        <p class="font-semibold">Location: ${event.location}</p>
+                        <p class="font-semibold text-blue-600">${spotsLeft} spots left!</p>
+                    </div>
+                </div>
+            `;
+        });
+    });
+});
+</script>
+{% endblock %}
+

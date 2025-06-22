@@ -1,0 +1,149 @@
+{% extends 'base.html' %}
+{% block title %}Staff Schedule{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-bold text-gray-800">Weekly Staff Schedule</h1>
+        <a href="{% url 'home' %}" class="text-blue-500 hover:underline">&larr; Back to Dashboard</a>
+        <div class="flex items-center gap-4">
+            <button id="prev-week-btn" class="px-4 py-2 bg-gray-200 rounded-lg">&lt; Prev</button>
+            <span id="week-display" class="font-semibold text-lg"></span>
+            <button id="next-week-btn" class="px-4 py-2 bg-gray-200 rounded-lg">Next &gt;</button>
+        </div>
+    </div>
+    
+    <div class="bg-white p-4 rounded-lg shadow-lg overflow-x-auto">
+        <div id="schedule-grid" class="grid grid-cols-8 min-w-[1200px]">
+            <!-- Header for time slots -->
+            <div class="font-bold border-b p-2">Time</div>
+            <!-- Headers for days of the week -->
+        </div>
+    </div>
+</div>
+
+<!-- Add Shift Modal -->
+<div id="shift-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full"><div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"><h3 class="text-2xl text-center font-medium text-gray-900">Add Shift</h3><form id="shift-form" class="space-y-4 p-4"><input type="hidden" id="shift-start"><input type="hidden" id="shift-end"><div><label>Staff</label><select id="staff-select" class="w-full p-2 border rounded"></select></div><div><label>Notes</label><textarea id="shift-notes" class="w-full p-2 border rounded"></textarea></div></form><div class="px-4 py-3"><button id="save-shift-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Save Shift</button><button id="close-modal-btn" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button></div></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const grid = document.getElementById('schedule-grid');
+    const weekDisplay = document.getElementById('week-display');
+    const modal = document.getElementById('shift-modal');
+    const staffSelect = document.getElementById('staff-select');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    let currentWeekStart = getStartOfWeek(new Date());
+    let staffList = [];
+
+    function getStartOfWeek(d) {
+        const date = new Date(d);
+        const day = date.getDay();
+        const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(date.setDate(diff));
+    }
+
+    const loadStaff = () => {
+        fetch('/api/users/').then(res => res.json()).then(data => {
+            staffList = data;
+            staffSelect.innerHTML = data.map(u => `<option value="${u.id}">${u.first_name} ${u.last_name}</option>`).join('');
+        });
+    };
+
+    const renderCalendar = (startDate) => {
+        grid.innerHTML = '<div class="font-bold border-b p-2 sticky left-0 bg-white">Time</div>';
+        const days = [];
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(startDate);
+            day.setDate(startDate.getDate() + i);
+            days.push(day);
+            grid.innerHTML += `<div class="font-bold border-b p-2 text-center">${day.toLocaleDateString('en-US', { weekday: 'short' })}<br>${day.getDate()}</div>`;
+        }
+
+        for (let hour = 8; hour < 22; hour++) {
+            grid.innerHTML += `<div class="p-2 border-r border-b sticky left-0 bg-white text-xs text-right">${hour}:00</div>`;
+            for (let i = 0; i < 7; i++) {
+                grid.innerHTML += `<div class="time-slot border-r border-b p-1" data-date="${days[i].toISOString().split('T')[0]}" data-hour="${hour}"></div>`;
+            }
+        }
+        weekDisplay.textContent = `${startDate.toLocaleDateString()} - ${days[6].toLocaleDateString()}`;
+        loadShifts(startDate, days[6]);
+    };
+    
+    const loadShifts = (start, end) => {
+        const endOfDay = new Date(end);
+        endOfDay.setHours(23, 59, 59, 999);
+        const url = `/api/schedule/shifts/?start_date=${start.toISOString()}&end_date=${endOfDay.toISOString()}`;
+        fetch(url).then(res => res.json()).then(shifts => {
+            shifts.forEach(shift => {
+                const start = new Date(shift.start_time);
+                const date = start.toISOString().split('T')[0];
+                const hour = start.getHours();
+                const slot = grid.querySelector(`.time-slot[data-date="${date}"][data-hour="${hour}"]`);
+                if (slot) {
+                    const shiftDiv = document.createElement('div');
+                    shiftDiv.className = 'bg-blue-200 p-1 rounded text-xs cursor-pointer';
+                    shiftDiv.textContent = shift.user_name;
+                    shiftDiv.dataset.id = shift._id;
+                    shiftDiv.addEventListener('click', () => {
+                        if(confirm(`Delete shift for ${shift.user_name}?`)) {
+                            deleteShift(shift._id);
+                        }
+                    });
+                    slot.appendChild(shiftDiv);
+                }
+            });
+        });
+    };
+    
+    const deleteShift = (id) => {
+        fetch(`/api/schedule/shifts/${id}/`, { method: 'DELETE', headers: {'X-CSRFToken': csrftoken}})
+            .then(res => {
+                if(res.ok) renderCalendar(currentWeekStart);
+                else alert('Failed to delete shift.');
+            });
+    };
+
+    grid.addEventListener('click', e => {
+        if(e.target.classList.contains('time-slot')) {
+            const date = e.target.dataset.date;
+            const hour = e.target.dataset.hour;
+            const start = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
+            const end = new Date(start.getTime() + 8 * 60 * 60 * 1000); // Default 8-hour shift
+            
+            document.getElementById('shift-start').value = start.toISOString();
+            document.getElementById('shift-end').value = end.toISOString();
+            modal.classList.remove('hidden');
+        }
+    });
+
+    document.getElementById('save-shift-btn').addEventListener('click', () => {
+        const data = {
+            user_id: staffSelect.value,
+            start_time: document.getElementById('shift-start').value,
+            end_time: document.getElementById('shift-end').value,
+            notes: document.getElementById('shift-notes').value
+        };
+        fetch('/api/schedule/shifts/', { method: 'POST', headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken}, body: JSON.stringify(data) })
+            .then(res => res.ok ? res.json() : Promise.reject('Failed to save shift.'))
+            .then(() => {
+                modal.classList.add('hidden');
+                renderCalendar(currentWeekStart);
+            }).catch(err => alert(err));
+    });
+
+    document.getElementById('close-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
+    document.getElementById('prev-week-btn').addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+        renderCalendar(currentWeekStart);
+    });
+    document.getElementById('next-week-btn').addEventListener('click', () => {
+        currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+        renderCalendar(currentWeekStart);
+    });
+
+    loadStaff();
+    renderCalendar(currentWeekStart);
+});
+</script>
+{% endblock %}
+

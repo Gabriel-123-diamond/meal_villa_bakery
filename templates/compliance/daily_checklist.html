@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% block title %}Daily Compliance Checklist{% endblock %}
+{% block content %}
+<div class="container mx-auto px-4 py-8">
+    <div class="max-w-3xl mx-auto">
+        <h1 class="text-3xl font-bold text-gray-800 mb-6">Compliance Checklist</h1>
+        <p class="text-gray-600 mb-6">Please complete the required tasks and log them here.</p>
+        <div id="task-list" class="space-y-4">
+            <!-- Tasks will be loaded here -->
+        </div>
+    </div>
+</div>
+
+<!-- Log Task Modal -->
+<div id="log-task-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 h-full w-full"><div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white"><h3 id="log-modal-title" class="text-2xl text-center font-medium text-gray-900">Log Task Completion</h3><form id="log-task-form" class="space-y-4 p-4"><input type="hidden" id="log-task-id"><textarea id="log-notes" placeholder="Optional notes..." class="w-full p-2 border rounded" rows="3"></textarea></form><div class="px-4 py-3"><button id="save-log-btn" class="px-4 py-2 bg-green-500 text-white rounded w-full">Log as Complete</button><button id="close-log-modal-btn" class="mt-2 px-4 py-2 bg-gray-500 text-white rounded w-full">Cancel</button></div></div></div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const taskListContainer = document.getElementById('task-list');
+    const modal = document.getElementById('log-task-modal');
+    const modalTitle = document.getElementById('log-modal-title');
+    const logTaskIdInput = document.getElementById('log-task-id');
+    const notesInput = document.getElementById('log-notes');
+    const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    const loadTasks = () => {
+        fetch('/api/compliance/tasks/')
+            .then(res => res.json())
+            .then(tasks => {
+                taskListContainer.innerHTML = '';
+                if(tasks.length === 0) {
+                    taskListContainer.innerHTML = '<p>No compliance tasks have been set up by management.</p>';
+                }
+                tasks.forEach(task => {
+                    taskListContainer.innerHTML += `
+                        <div class="bg-white p-4 rounded-lg shadow flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-lg">${task.task_name} <span class="text-sm font-normal text-gray-500">(${task.frequency})</span></h3>
+                                <p class="text-gray-600 text-sm">${task.description}</p>
+                            </div>
+                            <button data-id="${task._id}" data-name="${task.task_name}" class="log-task-btn bg-blue-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-600">Log Task</button>
+                        </div>
+                    `;
+                });
+            });
+    };
+    
+    const openLogModal = (taskId, taskName) => {
+        logTaskIdInput.value = taskId;
+        modalTitle.textContent = `Log: ${taskName}`;
+        notesInput.value = '';
+        modal.classList.remove('hidden');
+    };
+    
+    document.getElementById('close-log-modal-btn').addEventListener('click', () => modal.classList.add('hidden'));
+
+    taskListContainer.addEventListener('click', (e) => {
+        if (e.target.classList.contains('log-task-btn')) {
+            openLogModal(e.target.dataset.id, e.target.dataset.name);
+        }
+    });
+
+    document.getElementById('save-log-btn').addEventListener('click', () => {
+        const data = {
+            task_id: logTaskIdInput.value,
+            notes: notesInput.value
+        };
+        fetch('/api/compliance/log/', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrftoken},
+            body: JSON.stringify(data)
+        })
+        .then(res => res.ok ? res.json() : Promise.reject('Failed to log task.'))
+        .then(() => {
+            alert('Task logged successfully!');
+            modal.classList.add('hidden');
+        })
+        .catch(err => alert(err));
+    });
+
+    loadTasks();
+});
+</script>
+{% endblock %}
+
